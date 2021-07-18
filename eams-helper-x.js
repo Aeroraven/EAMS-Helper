@@ -1,12 +1,22 @@
 // ==UserScript==
 // @name         EAMSHelper-X
 // @namespace    https://github.com/Aeroraven/Hello_World/EAMSHelper
-// @version      0.4.1
+// @version      0.5-indev-1
 // @description  Archive information on EAM System.
 // @author       Aeroraven
 // @match        *://1.tongji.edu.cn/*
-// @grant        none
+// @grant        unsafeWindow
 // @include      *://1.tongji.edu.cn/*
+//@require https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/core.min.js
+//@require https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/enc-base64.min.js
+//@require https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/md5.min.js
+//@require https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/evpkdf.min.js
+//@require https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/cipher-core.min.js
+//@require https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/aes.min.js
+//@require https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/pad-pkcs7.min.js
+//@require https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/mode-ecb.min.js
+//@require https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/enc-utf8.min.js
+//@require https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/enc-hex.min.js
 // ==/UserScript==
 
 //End of Tampermonkey header
@@ -25,6 +35,14 @@ function eamsHelper() {
     eamsHelper.customizedStuIdList = [];
     eamsHelper.scanType = 0;//0:Default / 1:Customized
     eamsHelper.ignoreParamMark = 0;
+
+    //V0.5 Features
+    eamsHelper.crytpoEngine = CryptoJS;
+    eamsHelper.paramsCryptoOn=false;
+    eamsHelper.paramsCryptoAlgo="";
+    eamsHelper.paramsCryptoConfig={};
+    eamsHelper.paramsCryptoKey="";
+    eamsHelper.paramsCryptoDecodeType=0; //0-base64
 
 	this._this=this;
 	this.getPointsReportStatus=0;
@@ -166,7 +184,29 @@ function eamsHelper() {
         }
 
         self.getPointsReportStatus = 1;
-        self.standardXHRGet(eamsHelper.getPointsReportAddr + xpIdentity, true, eamsHelper.customizedXHRHeader,
+        //Cryto Start
+        let cbIdentityX=String(xpIdentity);
+        if(eamsHelper.paramsCryptoOn){
+            if(eamsHelper.paramsCryptoAlgo==='AES'){
+                let cryptoKey=eamsHelper.crytpoEngine.enc.Utf8.parse(eamsHelper.paramsCryptoKey)
+                let cryptoIv=eamsHelper.crytpoEngine.enc.Utf8.parse(eamsHelper.paramsCryptoConfig.iv)
+                cbIdentityX=eamsHelper.crytpoEngine.AES.encrypt(
+                    cbIdentityX,
+                    cryptoKey,
+                    {
+                        iv:cryptoIv,
+                        mode:eamsHelper.paramsCryptoConfig.mode,
+                        padding:eamsHelper.paramsCryptoConfig.padding,
+                    })
+                if(eamsHelper.paramsCryptoDecodeType==='base64'){
+                    cbIdentityX=eamsHelper.crytpoEngine.enc.Base64.stringify(cbIdentityX)
+                }else{
+                    console.log("EAMSHelper-Error: Unknown Decode Type")
+                }
+            }
+        }
+        //Crypto End
+        self.standardXHRGet(eamsHelper.getPointsReportAddr + cbIdentityX, true, eamsHelper.customizedXHRHeader,
             function (obj, cbIdentity = stIdentity, thisObj = self) {
 				thisObj.getPointsReportStatus=0;
                 thisObj.getPointsReportAsync(cbIdentity,obj.responseText);
@@ -243,7 +283,29 @@ function eamsHelper() {
         if (configJson.hasOwnProperty("ignore_Ques_Mark")) {
             eamsHelper.ignoreParamMark = configJson["ignore_Ques_Mark"];
         }
-
+        //V0.5 Feature
+        if(configJson.hasOwnProperty("crypto_type")&&configJson.hasOwnProperty("crypto_config")){
+            eamsHelper.paramsCryptoOn=true;
+            if(configJson["crypto_type"]==='AES'){
+                eamsHelper.paramsCryptoAlgo='AES'
+                let r=configJson["crypto_config"];
+                eamsHelper.paramsCryptoConfig.iv=r.iv;
+                //AES Mode
+                if(r.mode=="CBC"){
+                    eamsHelper.paramsCryptoConfig.mode = eamsHelper.crytpoEngine.mode.CBC
+                    console.log("SET CBC")
+                }
+                //AES Padding
+                if(r.padding=="PKCS7"){
+                    eamsHelper.paramsCryptoConfig.padding = eamsHelper.crytpoEngine.pad.Pkcs7
+                    console.log("SET PKCS7")
+                }
+                //AES Key
+                eamsHelper.paramsCryptoKey=r.key
+                //AES Decode Type
+                paramsCryptoDecodeType=r.decodeType
+            }
+        }
     }
 
     this.ui_showProg = function (self = this) {
@@ -311,5 +373,6 @@ function scriptLoadedTip() {
     console.log("EAMSHelper Loaded!");
 }
 scriptLoadedTip();
-window.ehInjected = new eamsHelper();
+unsafeWindow.ehInjected = new eamsHelper();
+unsafeWindow.cryptox = CryptoJS
 ehPreload();
