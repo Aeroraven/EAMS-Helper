@@ -4,9 +4,7 @@
 // @version      0.5-indev-1
 // @description  Archive information on EAM System.
 // @author       Aeroraven
-// @match        *://1.tongji.edu.cn/*
 // @grant        unsafeWindow
-// @include      *://1.tongji.edu.cn/*
 //@require https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/core.min.js
 //@require https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/enc-base64.min.js
 //@require https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/md5.min.js
